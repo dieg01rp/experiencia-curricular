@@ -7,66 +7,158 @@ Original file is located at
     https://colab.research.google.com/drive/1rsDYqTn0OBbDgoHEYrlz0zoUqF-0PJwd
 """
 
-import streamlit as st
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+import streamlit as st
 
-st.set_page_config(
-    page_title="Simulador de Perceptrón · Aprobación de Curso",
-    page_icon="📐",
-    layout="wide",
-)
-
-st.title("Simulador de Perceptrón Binario")
+# Configuración de la página
+st.set_page_config(page_title="Red Neuronal - Predicción de Notas", layout="wide")
+st.title("🧠 Red Neuronal (Perceptrón) para Aprobación de Curso")
 st.markdown(
-    "Aplicación interactiva para evaluar el criterio lógico de aprobación del curso "
-    "($\ge 2$ unidades aprobadas de un total de 3 unidades)."
+    "**Regla del negocio:** 3 unidades (0 a 20). Aprueba (1) si tiene **al menos 2 unidades con nota >= 14**."
 )
 
-# ── Sidebar para entradas ──
-with st.sidebar:
-    st.subheader("Unidades Académicas (Entradas x)")
-    u1 = st.checkbox("Unidad 1 (Fundamentos y Perceptrón)", value=True)
-    u2 = st.checkbox("Unidad 2 (Redes Recurrentes)", value=True)
-    u3 = st.checkbox("Unidad 3 (Aplicaciones y Despliegue)", value=False)
+# ==============================================================================
+# BARRA LATERAL: HIPERPARÁMETROS DE LA RED
+# ==============================================================================
+st.sidebar.header("⚙️ Configuración de la Red")
+nota_minima = st.sidebar.number_input("Nota mínima aprobatoria", value=14, min_value=1, max_value=20)
+tipo_red = st.sidebar.selectbox(
+    "Arquitectura de Red",
+    [
+        "Perceptrón Multicapa (MLP - Recomendado)",
+        "Perceptrón Simple (1 neurona - Limitado)",
+    ],
+)
+epocas = st.sidebar.slider("Máximo de Épocas (Iteraciones)", 50, 1000, 300, step=50)
+tasa_aprendizaje = st.sidebar.select_slider(
+    "Tasa de aprendizaje (Learning Rate)", options=[0.001, 0.01, 0.05, 0.1], value=0.01
+)
 
-    st.markdown("---")
-    st.subheader("Configuración del Umbral")
-    umbral = st.slider("Umbral de aprobación (Theta)", min_value=1, max_value=3, value=2)
 
-# ── Procesamiento lógico ──
-x = np.array([int(u1), int(u2), int(u3)], dtype=float)
-w = np.array([1.0, 1.0, 1.0])  # Pesos unitarios según planteamiento lógico
-net = np.dot(w, x)
-y_pred = 1 if net >= umbral else 0
+# ==============================================================================
+# 1. GENERACIÓN Y DIVISIÓN DE DATOS (TRAIN / VAL / TEST)
+# ==============================================================================
+@st.cache_data
+def crear_dataset(nota_aprob):
+    # Generamos las 9,261 combinaciones posibles de notas enteras (0 a 20)
+    notas = [
+        [u1, u2, u3] for u1 in range(21) for u2 in range(21) for u3 in range(21)
+    ]
+    X = np.array(notas)
 
-# ── Visualización de Resultados ──
-col1, col2 = st.columns(2)
+    # Etiquetamos según la regla: >= 2 unidades aprobadas
+    y = np.array([1 if sum(n >= nota_aprob for n in fila) >= 2 else 0 for fila in X])
+    return X, y
 
-with col1:
-    st.subheader("Estado de Evaluación")
-    st.metric(label="Suma Ponderada (net = w·x)", value=f"{net:.1f}")
-    st.metric(label="Umbral Requerido", value=f"{umbral}.0")
 
-    if y_pred == 1:
-        st.success("ESTADO: CURSO APROBADO (Salida y = 1)")
-    else:
-        st.error("ESTADO: CURSO DESAPROBADO (Salida y = 0)")
+X, y = crear_dataset(nota_minima)
 
-with col2:
-    st.subheader("Representación Gráfica de Entradas")
-    fig, ax = plt.subplots(figsize=(6, 3))
-    unidades = ['Unidad 1', 'Unidad 2', 'Unidad 3']
-    colores = ['#16A34A' if val == 1 else '#DC2626' for val in x]
-    ax.bar(unidades, x, color=colores, width=0.5)
-    ax.set_ylim(0, 1.5)
-    ax.set_ylabel("Estado (0 / 1)")
-    ax.grid(axis='y', alpha=0.3)
+# Normalizamos las notas entre 0 y 1 (fundamental para redes neuronales)
+X_norm = X / 20.0
+
+# División: 70% Entrenamiento, 15% Validación, 15% Prueba
+X_train, X_temp, y_train, y_temp = train_test_split(
+    X_norm, y, test_size=0.30, random_state=42, stratify=y
+)
+X_val, X_test, y_val, y_test = train_test_split(
+    X_temp, y_temp, test_size=0.50, random_state=42, stratify=y_temp
+)
+
+# ==============================================================================
+# 2. CONFIGURACIÓN Y ENTRENAMIENTO DEL MODELO
+# ==============================================================================
+# Si elige Perceptrón Simple, ponemos 1 sola neurona en capa oculta.
+# Si elige Multicapa, ponemos 2 capas ocultas de 16 y 8 neuronas para capturar la regla no lineal.
+capas_ocultas = (1,) if "Simple" in tipo_red else (16, 8)
+
+modelo = MLPClassifier(
+    hidden_layer_sizes=capas_ocultas,
+    activation="relu",
+    solver="adam",
+    learning_rate_init=tasa_aprendizaje,
+    max_iter=epocas,
+    random_state=42,
+    early_stopping=False,
+)
+
+# Entrenamos la red con el 70% de los datos
+modelo.fit(X_train, y_train)
+
+# Calculamos precisión en los 3 conjuntos
+acc_train = accuracy_score(y_train, modelo.predict(X_train)) * 100
+acc_val = accuracy_score(y_val, modelo.predict(X_val)) * 100
+acc_test = accuracy_score(y_test, modelo.predict(X_test)) * 100
+
+# ==============================================================================
+# 3. VISUALIZACIÓN DE RESULTADOS EN STREAMLIT
+# ==============================================================================
+col1, col2, col3 = st.columns(3)
+col1.metric("🎯 Precisión Entrenamiento (70%)", f"{acc_train:.2f}%")
+col2.metric("🔍 Precisión Validación (15%)", f"{acc_val:.2f}%")
+col3.metric("🏆 Precisión Prueba Final (15%)", f"{acc_test:.2f}%")
+
+st.divider()
+
+col_izq, col_der = st.columns(2)
+
+with col_izq:
+    st.subheader("📉 Curva de Aprendizaje (Pérdida / Error)")
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(modelo.loss_curve_, color="#ff4b4b", linewidth=2)
+    ax.set_title("Cómo disminuye el error en cada época")
+    ax.set_xlabel("Épocas")
+    ax.set_ylabel("Error (Loss)")
+    ax.grid(True, linestyle="--", alpha=0.6)
     st.pyplot(fig)
-    plt.close(fig)
+    st.caption(
+        "Si la curva baja y se aplana cerca de cero, la red logró entender el patrón."
+    )
 
-st.markdown("---")
-st.markdown(
-    "**Nota metodológica:** Este modelo implementa una compuerta lógica de umbral estricto "
-    "sin cálculos aritméticos ponderados complejos, cumpliendo con la regla de decisión de unidades aprobadas."
-)
+with col_der:
+    st.subheader("🧪 Prueba Manual con un Estudiante")
+    u1 = st.slider("Nota Unidad 1", 0, 20, 15)
+    u2 = st.slider("Nota Unidad 2", 0, 20, 14)
+    u3 = st.slider("Nota Unidad 3", 0, 20, 5)
+
+    entrada_usuario = np.array([[u1, u2, u3]]) / 20.0
+    prediccion = modelo.predict(entrada_usuario)[0]
+    probabilidad = modelo.predict_proba(entrada_usuario)[0]
+
+    promedio_matematico = (u1 + u2 + u3) / 3
+    unidades_aprob = sum(n >= nota_minima for n in [u1, u2, u3])
+
+    st.write(f"**Promedio aritmético (ignorado por la red):** `{promedio_matematico:.2f}`")
+    st.write(f"**Unidades >= {nota_minima}:** `{unidades_aprob} de 3`")
+
+    if prediccion == 1:
+        st.success(f"### Predicción RNA: APROBADO ✅ (Seguridad: {probabilidad[1]*100:.1f}%)")
+    else:
+        st.error(f"### Predicción RNA: DESAPROBADO ❌ (Seguridad: {probabilidad[0]*100:.1f}%)")
+
+# ==============================================================================
+# 4. TABLA DE CASOS TRAMPA (PARA DEMOSTRAR QUE NO USA PROMEDIO)
+# ==============================================================================
+st.divider()
+st.subheader("🕵️ Prueba de Casos Trampa (Demostración para el profesor)")
+casos_trampa = np.array([,  # Promedio 13.3 (bajo), pero 2 aprobadas -> APRUEBA,  # Promedio 10.0 (muy bajo), pero 2 aprobadas -> APRUEBA,  # Promedio 15.3 (alto), pero solo 1 aprobada -> DESAPRUEBA,  # Promedio 14.6 (alto), pero solo 1 aprobada -> DESAPRUEBA
+])
+
+preds_trampa = modelo.predict(casos_trampa / 20.0)
+df_trampa = pd.DataFrame(casos_trampa, columns=["Unidad 1", "Unidad 2", "Unidad 3"])
+df_trampa["Promedio Tradicional"] = df_trampa.mean(axis=1).round(2)
+df_trampa["Regla Real"] = [
+    "Aprueba (2 >= 14)",
+    "Aprueba (2 >= 14)",
+    "Desaprueba (1 >= 14)",
+    "Desaprueba (1 >= 14)",
+]
+df_trampa["Predicción Red Neuronal"] = [
+    "APROBADO ✅" if p == 1 else "DESAPROBADO ❌" for p in preds_trampa
+]
+
+st.dataframe(df_trampa, use_container_width=True)
