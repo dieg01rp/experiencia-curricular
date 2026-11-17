@@ -15,18 +15,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 import streamlit as st
 
-# Configuración de la página
-st.set_page_config(
-    page_title="Predicción de Notas", layout="wide"
-)
-st.title("Red Neuronal Artificial (RNA) para calcular si un alumno aprobará un curso")
-st.markdown(
-    "**Reglas :** \n - 3 unidades (0 - 20). \n - Aprueba (1) si tiene al menos 2 unidades con nota igual o mayor a 14."
-)
+# CONFIGURACION (HIPERPARAMETROS)
 
-# ==============================================================================
-# BARRA LATERAL: HIPERPARÁMETROS DE LA RED
-# ==============================================================================
 st.sidebar.header("Configuración")
 nota_minima = st.sidebar.number_input(
     "Nota mínima aprobatoria", value=14, min_value=1, max_value=20
@@ -47,10 +37,17 @@ tasa_aprendizaje = st.sidebar.select_slider(
     value=0.01,
 )
 
+# PRINCIPAL
+st.set_page_config(
+    page_title="Predicción de Notas", layout="wide"
+)
+st.title("Red Neuronal Artificial (RNA) para calcular si un alumno aprobará un curso")
+st.markdown(
+    f"""**Reglas :** \n - 3 unidades (0 - 20). \n - Aprueba (1) si tiene al menos 2 unidades con nota igual o mayor a **{int(nota_minima)}**."""
+)
 
-# ==============================================================================
-# 1. GENERACIÓN Y DIVISIÓN DE DATOS (TRAIN / VAL / TEST)
-# ==============================================================================
+
+# ENTRENAMIENTO / VALIDACION / PRUEBA
 @st.cache_data
 def crear_dataset(nota_aprob):
     notas = [
@@ -65,10 +62,10 @@ def crear_dataset(nota_aprob):
 
 X, y = crear_dataset(int(nota_minima))
 
-# Normalizamos las notas entre 0 y 1
+# normalizamos las notas entre 0 y 1
 X_norm = X / 20.0
 
-# División: 70% Entrenamiento, 15% Validación, 15% Prueba
+# division 70% entrenamiento 15% validacion 15 Prueba
 X_train, X_temp, y_train, y_temp = train_test_split(
     X_norm, y, test_size=0.30, random_state=42, stratify=y
 )
@@ -76,9 +73,7 @@ X_val, X_test, y_val, y_test = train_test_split(
     X_temp, y_temp, test_size=0.50, random_state=42, stratify=y_temp
 )
 
-# ==============================================================================
-# 2. CONFIGURACIÓN Y ENTRENAMIENTO DEL MODELO
-# ==============================================================================
+# ENTRENAMIENTO DEL MODELO
 capas_ocultas = (1,) if "Simple" in tipo_red else (32, 16)
 activacion = "relu" if "Simple" in tipo_red else "tanh"
 
@@ -100,13 +95,11 @@ acc_train = accuracy_score(y_train, modelo.predict(X_train)) * 100
 acc_val = accuracy_score(y_val, modelo.predict(X_val)) * 100
 acc_test = accuracy_score(y_test, modelo.predict(X_test)) * 100
 
-# ==============================================================================
-# 3. VISUALIZACIÓN DE RESULTADOS EN STREAMLIT
-# ==============================================================================
+# MOSTRAR
 col1, col2, col3 = st.columns(3)
 col1.metric("Precisión Entrenamiento (70%)", f"{acc_train:.2f}%")
 col2.metric("Precisión Validación (15%)", f"{acc_val:.2f}%")
-col3.metric("Precisión Prueba Final (15%)", f"{acc_test:.2f}%")
+col3.metric("Precisión Prueba (15%)", f"{acc_test:.2f}%")
 
 st.divider()
 
@@ -152,9 +145,7 @@ with col_der:
             f"### Predicción RNA: DESAPROBADO  (Seguridad: {prob_desaprobado * 100:.1f}%)"
         )
 
-# ==============================================================================
-# 4. TABLA DE CASOS TRAMPA (PARA DEMOSTRAR QUE NO USA PROMEDIO)
-# ==============================================================================
+# CASOS TRAMPA (APRUEBA POR PROMEDIO PERO NO POR LAS REGLAS DEL MODELO)
 st.divider()
 st.subheader("Prueba de casos trampa")
 
