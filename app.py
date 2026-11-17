@@ -149,11 +149,15 @@ with col_der:
 st.divider()
 st.subheader("Prueba de casos trampa")
 
+nm = int(nota_minima)
+baja = max(0, nm - 1)
+alta = min(20, nm + 1)
+
 datos_trampa = [
-    (14, 14, 12),
-    (15, 15, 0),
-    (20, 13, 13),
-    (18, 13, 13),
+    (nm, nm, max(0, nm - 2)),
+    (alta, alta, 0),
+    (20, baja, baja),
+    (min(20, nm + 4), baja, baja),
 ]
 casos_trampa = np.array(datos_trampa)
 
@@ -163,10 +167,10 @@ df_trampa = pd.DataFrame(
 )
 df_trampa["Promedio"] = df_trampa.mean(axis=1).round(2)
 df_trampa["Regla"] = [
-    f"Aprueba (2 >= {int(nota_minima)})",
-    f"Aprueba (2 >= {int(nota_minima)})",
-    f"Desaprueba (1 >= {int(nota_minima)})",
-    f"Desaprueba (1 >= {int(nota_minima)})",
+    f"Aprueba ({sum(n >= nm for n in fila)} >= {nm})"
+    if sum(n >= nm for n in fila) >= 2
+    else f"Desaprueba ({sum(n >= nm for n in fila)} >= {nm})"
+    for fila in casos_trampa
 ]
 df_trampa["Predicción RNA"] = [
     "APROBADO" if p == 1 else "DESAPROBADO" for p in preds_trampa
