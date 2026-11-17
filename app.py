@@ -145,7 +145,8 @@ with col_der:
 # ==============================================================================
 st.divider()
 st.subheader("🕵️ Prueba de Casos Trampa (Demostración para el profesor)")
-casos_trampa = np.array([,  # Promedio 13.3 (bajo), pero 2 aprobadas -> APRUEBA,  # Promedio 10.0 (muy bajo), pero 2 aprobadas -> APRUEBA,  # Promedio 15.3 (alto), pero solo 1 aprobada -> DESAPRUEBA,  # Promedio 14.6 (alto), pero solo 1 aprobada -> DESAPRUEBA
+
+casos_trampa = np.array([,  # Promedio 13.3 (bajo), pero 2 aprobadas -> APRUEBA,   # Promedio 10.0 (muy bajo), pero 2 aprobadas -> APRUEBA,  # Promedio 15.3 (alto), pero solo 1 aprobada -> DESAPRUEBA,  # Promedio 14.6 (alto), pero solo 1 aprobada -> DESAPRUEBA
 ])
 
 preds_trampa = modelo.predict(casos_trampa / 20.0)
