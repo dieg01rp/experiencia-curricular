@@ -17,32 +17,32 @@ import streamlit as st
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Red Neuronal - Predicción de Notas", layout="wide"
+    page_title="Predicción de Notas", layout="wide"
 )
-st.title("🧠 Red Neuronal (Perceptrón) para Aprobación de Curso")
+st.title("Red Neuronal Artificial (RNA) para calcular si un alumno aprobará un curso")
 st.markdown(
-    "**Regla del negocio:** 3 unidades (0 a 20). Aprueba (1) si tiene **al menos 2 unidades con nota >= 14**."
+    "**Reglas :** \n - 3 unidades (0 - 20). \n - Aprueba (1) si tiene al menos 2 unidades con nota igual o mayor a 14."
 )
 
 # ==============================================================================
 # BARRA LATERAL: HIPERPARÁMETROS DE LA RED
 # ==============================================================================
-st.sidebar.header("⚙️ Configuración de la Red")
+st.sidebar.header("Configuración")
 nota_minima = st.sidebar.number_input(
     "Nota mínima aprobatoria", value=14, min_value=1, max_value=20
 )
 tipo_red = st.sidebar.selectbox(
-    "Arquitectura de Red",
+    "Arquitectura",
     [
-        "Perceptrón Multicapa (MLP - Recomendado)",
-        "Perceptrón Simple (1 neurona - Limitado)",
+        "Perceptrón Multicapa (MLP)",
+        "Perceptrón Simple (1 neurona)",
     ],
 )
 epocas = st.sidebar.slider(
-    "Máximo de Épocas (Iteraciones)", 50, 1000, 300, step=50
+    "Máximo de Epocas (Iteraciones)", 50, 1000, 300, step=50
 )
 tasa_aprendizaje = st.sidebar.select_slider(
-    "Tasa de aprendizaje (Learning Rate)",
+    "Tasa de aprendizaje",
     options=[0.001, 0.01, 0.05, 0.1],
     value=0.01,
 )
@@ -104,30 +104,27 @@ acc_test = accuracy_score(y_test, modelo.predict(X_test)) * 100
 # 3. VISUALIZACIÓN DE RESULTADOS EN STREAMLIT
 # ==============================================================================
 col1, col2, col3 = st.columns(3)
-col1.metric("🎯 Precisión Entrenamiento (70%)", f"{acc_train:.2f}%")
-col2.metric("🔍 Precisión Validación (15%)", f"{acc_val:.2f}%")
-col3.metric("🏆 Precisión Prueba Final (15%)", f"{acc_test:.2f}%")
+col1.metric("Precisión Entrenamiento (70%)", f"{acc_train:.2f}%")
+col2.metric("Precisión Validación (15%)", f"{acc_val:.2f}%")
+col3.metric("Precisión Prueba Final (15%)", f"{acc_test:.2f}%")
 
 st.divider()
 
 col_izq, col_der = st.columns(2)
 
 with col_izq:
-    st.subheader("📉 Curva de Aprendizaje (Pérdida / Error)")
+    st.subheader("Curva de Aprendizaje (Error)")
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(modelo.loss_curve_, color="#ff4b4b", linewidth=2)
     ax.set_title("Cómo disminuye el error en cada época")
     ax.set_xlabel("Épocas")
-    ax.set_ylabel("Error (Loss)")
+    ax.set_ylabel("Error")
     ax.grid(True, linestyle="--", alpha=0.6)
     st.pyplot(fig)
     plt.close(fig)
-    st.caption(
-        "Si la curva baja y se aplana cerca de cero, la red logró entender el patrón."
-    )
 
 with col_der:
-    st.subheader("🧪 Prueba Manual con un Estudiante")
+    st.subheader("Prueba Manual")
     u1 = st.slider("Nota Unidad 1", 0, 20, 15)
     u2 = st.slider("Nota Unidad 2", 0, 20, 14)
     u3 = st.slider("Nota Unidad 3", 0, 20, 5)
@@ -142,24 +139,24 @@ with col_der:
     unidades_aprob = sum(n >= nota_minima for n in (u1, u2, u3))
 
     st.write(
-        f"**Promedio aritmético (ignorado por la red):** `{promedio_matematico:.2f}`"
+        f"**Promedio (ignorado):** `{promedio_matematico:.2f}`"
     )
     st.write(f"**Unidades >= {int(nota_minima)}:** `{unidades_aprob} de 3`")
 
     if prediccion == 1:
         st.success(
-            f"### Predicción RNA: APROBADO ✅ (Seguridad: {prob_aprobado * 100:.1f}%)"
+            f"### Predicción RNA: APROBADO  (Seguridad: {prob_aprobado * 100:.1f}%)"
         )
     else:
         st.error(
-            f"### Predicción RNA: DESAPROBADO ❌ (Seguridad: {prob_desaprobado * 100:.1f}%)"
+            f"### Predicción RNA: DESAPROBADO  (Seguridad: {prob_desaprobado * 100:.1f}%)"
         )
 
 # ==============================================================================
 # 4. TABLA DE CASOS TRAMPA (PARA DEMOSTRAR QUE NO USA PROMEDIO)
 # ==============================================================================
 st.divider()
-st.subheader("🕵️ Prueba de Casos Trampa (Demostración para el profesor)")
+st.subheader("Prueba de casos trampa")
 
 datos_trampa = [
     (14, 14, 12),
@@ -173,15 +170,15 @@ preds_trampa = modelo.predict(casos_trampa / 20.0)
 df_trampa = pd.DataFrame(
     casos_trampa, columns=["Unidad 1", "Unidad 2", "Unidad 3"]
 )
-df_trampa["Promedio Tradicional"] = df_trampa.mean(axis=1).round(2)
-df_trampa["Regla Real"] = [
+df_trampa["Promedio"] = df_trampa.mean(axis=1).round(2)
+df_trampa["Regla"] = [
     f"Aprueba (2 >= {int(nota_minima)})",
     f"Aprueba (2 >= {int(nota_minima)})",
     f"Desaprueba (1 >= {int(nota_minima)})",
     f"Desaprueba (1 >= {int(nota_minima)})",
 ]
-df_trampa["Predicción Red Neuronal"] = [
-    "APROBADO ✅" if p == 1 else "DESAPROBADO ❌" for p in preds_trampa
+df_trampa["Predicción RNA"] = [
+    "APROBADO" if p == 1 else "DESAPROBADO" for p in preds_trampa
 ]
 
 st.dataframe(df_trampa, use_container_width=True)
