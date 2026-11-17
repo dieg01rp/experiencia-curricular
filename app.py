@@ -79,19 +79,22 @@ X_val, X_test, y_val, y_test = train_test_split(
 # ==============================================================================
 # 2. CONFIGURACIÓN Y ENTRENAMIENTO DEL MODELO
 # ==============================================================================
-capas_ocultas = (1,) if "Simple" in tipo_red else (16, 8)
+capas_ocultas = (1,) if "Simple" in tipo_red else (32, 16)
+activacion = "relu" if "Simple" in tipo_red else "tanh"
 
 modelo = MLPClassifier(
     hidden_layer_sizes=capas_ocultas,
-    activation="relu",
+    activation=activacion,
     solver="adam",
     learning_rate_init=float(tasa_aprendizaje),
-    max_iter=int(epocas),
+    max_iter=max(int(epocas), 600),
+    tol=1e-6,
     random_state=42,
     early_stopping=False,
 )
 
 modelo.fit(X_train, y_train)
+
 
 acc_train = accuracy_score(y_train, modelo.predict(X_train)) * 100
 acc_val = accuracy_score(y_val, modelo.predict(X_val)) * 100
